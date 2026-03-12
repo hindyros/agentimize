@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentimize</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #000000;
+      --bg-1:      #0d0d0d;
+      --bg-2:      #141414;
+      --bg-3:      #1a1a1a;
+      --border:    #2a2a2a;
+      --border-hi: #3d3d3d;
+      --text:      #ffffff;
+      --text-2:    #a0a0a0;
+      --text-3:    #5a5a5a;
+      --accent:    #ffffff;
+      --green:     #4ade80;
+      --red:       #f87171;
+      --blue:      #60a5fa;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Typography ── */
+    .label  { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+    .mono   { font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace; }
+    .title  { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+
+    /* ── Layout ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 56px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-brand .wordmark { font-size: 15px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); }
+    .header-brand .divider { width: 1px; height: 16px; background: var(--border-hi); }
+    .header-brand .tagline { font-size: 11px; color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase; }
+    .header-right { display: flex; align-items: center; gap: 24px; }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 32px; }
+
+    /* ── Cards ── */
+    .card { background: var(--bg-1); border: 1px solid var(--border); }
+
+    /* ── Metric Grid ── */
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 32px; }
+    .metric-cell { background: var(--bg-1); padding: 24px 28px; }
+    .metric-value { font-size: 28px; font-weight: 300; letter-spacing: -0.03em; color: var(--text); margin-top: 8px; }
+    .metric-value.green { color: var(--green); }
+    .metric-value.blue  { color: var(--blue); }
+
+    /* ── Section Header ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); }
+
+    /* ── Chart Container ── */
+    .chart-wrap { padding: 20px; }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-bottom: 1px solid var(--border); }
+    th { padding: 10px 16px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); text-align: left; white-space: nowrap; }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg-2); color: var(--text); }
+    tbody tr { transition: background 0.1s; }
+
+    /* ── Status indicators ── */
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+    .dot.online  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.offline { background: var(--text-3); }
+
+    .badge { display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid; }
+    .badge.success { border-color: var(--green); color: var(--green); }
+    .badge.fail    { border-color: var(--red);   color: var(--red); }
+    .badge.unknown { border-color: var(--border-hi); color: var(--text-3); }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; border: 1px solid var(--border-hi); background: transparent; color: var(--text-2); transition: all 0.15s; }
+    .btn:hover { border-color: var(--text); color: var(--text); background: var(--bg-2); }
+    .btn.primary { border-color: var(--text); color: var(--bg); background: var(--text); }
+    .btn.primary:hover { background: var(--text-2); border-color: var(--text-2); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Savings bar ── */
+    .sbar { height: 2px; background: var(--bg-3); margin-top: 10px; }
+    .sbar-fill { height: 100%; background: var(--green); transition: width 0.6s ease; }
+
+    /* ── Two-col layout ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); margin-bottom: 32px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .metric-grid { grid-template-columns: 1fr 1fr; } }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; align-items: flex-start; justify-content: center; padding: 48px 24px; overflow-y: auto; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--bg-1); border: 1px solid var(--border-hi); width: 100%; max-width: 960px; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .modal-close { background: none; border: none; color: var(--text-3); font-size: 18px; cursor: pointer; line-height: 1; padding: 4px; }
+    .modal-close:hover { color: var(--text); }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; }
+    .tab { padding: 12px 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+    .tab:hover { color: var(--text-2); }
+    .tab.active { color: var(--text); border-bottom-color: var(--text); }
+    .tab-content { padding: 24px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Mini metric row ── */
+    .mini-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 20px; }
+    .mini-cell { background: var(--bg-2); padding: 16px 20px; }
+    .mini-value { font-size: 20px; font-weight: 300; letter-spacing: -0.02em; margin-top: 4px; }
+
+    /* ── Code block ── */
+    .code-block { background: var(--bg); border: 1px solid var(--border); padding: 16px 20px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: #a0c080; overflow-x: auto; white-space: pre; line-height: 1.7; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+    /* ── Complexity chips ── */
+    .chip { display: inline-block; padding: 1px 7px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid; }
+    .chip.simple  { border-color: #4ade8066; color: #4ade80; }
+    .chip.medium  { border-color: #facc1566; color: #facc15; }
+    .chip.complex { border-color: #f8717166; color: #f87171; }
+
+    /* ── Spinner ── */
+    .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Loading overlay ── */
+    #judgeLoadingOverlay { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    #judgeLoadingOverlay.open { display: flex; }
+
+    /* ── Input ── */
+    input[type=text] { background: var(--bg); border: 1px solid var(--border-hi); color: var(--text); padding: 8px 12px; font-size: 12px; width: 100%; outline: none; font-family: inherit; }
+    input[type=text]:focus { border-color: var(--text-2); }
+    input[type=text]::placeholder { color: var(--text-3); }
+
+    /* ── Loop card ── */
+    .loop-card { border: 1px solid var(--border); padding: 20px; margin-bottom: 12px; }
+    .loop-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+
+    /* ── Cursor pointer rows ── */
+    .clickable { cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-brand">
+    <span class="wordmark">Agentimize</span>
+    <span class="divider"></span>
+    <span class="tagline">Agent Cost Optimizer</span>
+  </div>
+  <div class="header-right">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="dot offline" id="proxyDot"></span>
+      <span style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.08em;" id="proxyText">Checking...</span>
+    </div>
+    <span style="font-size:11px;color:var(--text-3);" id="lastRefresh"></span>
+    <button class="btn" onclick="refreshAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- METRICS -->
+  <div class="metric-grid">
+    <div class="metric-cell">
+      <div class="label">Total Runs</div>
+      <div class="metric-value" id="cardRuns">—</div>
+    </div>
+    <div class="metric-cell">
+      <div class="label">Total Spend</div>
+      <div class="metric-value" id="cardSpend">—</div>
+    </div>
+    <div class="metric-cell">
+      <div class="label">Identified Savings</div>
+      <div class="metric-value green" id="cardSavings">—</div>
+    </div>
+    <div class="metric-cell">
+      <div class="label">Avg Savings</div>
+      <div class="metric-value green" id="cardSavingsPct">—</div>
+      <div class="sbar"><div class="sbar-fill" id="savingsBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- CHART + OVERVIEW -->
+  <div class="two-col" style="margin-bottom:32px;">
+
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">Cost per Session</span>
+        <span style="font-size:10px;color:var(--text-3);">
+          <span style="display:inline-block;width:8px;height:8px;background:#fff;margin-right:4px;"></span>Original
+          <span style="display:inline-block;width:8px;height:8px;background:#4ade80;margin-left:10px;margin-right:4px;"></span>Optimized
+        </span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="costChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">Recent Sessions</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Events</th>
+            <th>Spend</th>
+            <th>Savings</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="sessionsOverviewBody">
+          <tr><td colspan="5" style="color:var(--text-3);text-align:center;padding:32px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ALL SESSIONS TABLE -->
+  <div class="card">
+    <div class="section-header">
+      <span class="section-title">All Sessions</span>
+      <span style="font-size:11px;color:var(--text-3);" id="sessionCount"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Session ID</th>
+          <th>Task</th>
+          <th>Date</th>
+          <th>Original Cost</th>
+          <th>Optimized Cost</th>
+          <th>Savings</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="sessionsTableBody">
+        <tr><td colspan="8" style="color:var(--text-3);text-align:center;padding:40px;">No sessions yet. Start the proxy and run your agent.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<!-- SESSION MODAL -->
+<div class="modal-overlay" id="sessionModal">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <div>
+        <div style="font-size:14px;font-weight:700;letter-spacing:0.02em;" id="modalTitle">Session</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:3px;" id="modalSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('timeline',this)">Timeline</div>
+      <div class="tab" onclick="switchTab('optimization',this)">Optimization</div>
+      <div class="tab" onclick="switchTab('loops',this)">Loops</div>
+      <div class="tab" onclick="switchTab('formulation',this)">Formulation</div>
+      <div class="tab" onclick="switchTab('summary',this)">Summary</div>
+      <div class="tab" onclick="switchTab('patch',this)">Config Patch</div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="tab-pane active" id="tab-timeline">
+      <div class="tab-content" style="padding:0;">
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Model</th>
+                <th>Type</th>
+                <th>Tool</th>
+                <th>Prompt Tok</th>
+                <th>Completion Tok</th>
+                <th>Cost</th>
+                <th>Latency</th>
+                <th>Output</th>
+              </tr>
+            </thead>
+            <tbody id="timelineBody">
+              <tr><td colspan="9" style="color:var(--text-3);text-align:center;padding:32px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimization -->
+    <div class="tab-pane" id="tab-optimization">
+      <div class="tab-content">
+        <div class="mini-metrics">
+          <div class="mini-cell">
+            <div class="label">Original Cost</div>
+            <div class="mini-value" id="optOriginal">—</div>
+          </div>
+          <div class="mini-cell">
+            <div class="label">Optimized Cost</div>
+            <div class="mini-value" id="optOptimized">—</div>
+          </div>
+          <div class="mini-cell">
+            <div class="label">Savings</div>
+            <div class="mini-value green" id="optSavings">—</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Original Model</th>
+              <th>Recommended</th>
+              <th>Complexity</th>
+              <th>Savings</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody id="optimizationBody">
+            <tr><td colspan="5" style="color:var(--text-3);text-align:center;padding:32px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Loops -->
+    <div class="tab-pane" id="tab-loops">
+      <div class="tab-content" id="loopsContent">
+        <div style="color:var(--text-3);text-align:center;padding:32px;">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Formulation -->
+    <div class="tab-pane" id="tab-formulation">
+      <div class="tab-content">
+
+        <!-- Explanation -->
+        <div style="margin-bottom:24px;">
+          <div class="label" style="margin-bottom:8px;">Natural Language Explanation</div>
+          <div style="font-size:13px;color:var(--text-2);line-height:1.8;padding:16px 20px;border:1px solid var(--border);background:var(--bg-2);" id="fmlExplanation">—</div>
+        </div>
+
+        <!-- Problem overview -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:24px;">
+          <div style="background:var(--bg-2);padding:16px 20px;">
+            <div class="label">Problem Type</div>
+            <div style="font-size:12px;color:var(--text);margin-top:6px;" id="fmlType">—</div>
+          </div>
+          <div style="background:var(--bg-2);padding:16px 20px;">
+            <div class="label">Solver</div>
+            <div style="font-size:12px;color:var(--text);margin-top:6px;" id="fmlSolver">—</div>
+          </div>
+          <div style="background:var(--bg-2);padding:16px 20px;">
+            <div class="label">Variables / Constraints</div>
+            <div style="font-size:12px;color:var(--text);margin-top:6px;" id="fmlVarsConstraints">—</div>
+          </div>
+        </div>
+
+        <!-- Objective function -->
+        <div style="margin-bottom:24px;">
+          <div class="label" style="margin-bottom:8px;">Objective Function</div>
+          <div style="border:1px solid var(--border);">
+            <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:16px;">
+              <span style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);white-space:nowrap;margin-top:2px;">Sense</span>
+              <span style="font-size:12px;color:var(--green);font-weight:600;">MINIMIZE</span>
+            </div>
+            <div style="padding:12px 20px;border-bottom:1px solid var(--border);">
+              <div class="label" style="margin-bottom:6px;">LaTeX</div>
+              <div class="code-block" style="font-size:12px;" id="fmlLatex">—</div>
+            </div>
+            <div style="padding:12px 20px;border-bottom:1px solid var(--border);">
+              <div class="label" style="margin-bottom:6px;">Natural Language</div>
+              <div style="font-size:12px;color:var(--text-2);line-height:1.7;" id="fmlObjNL">—</div>
+            </div>
+            <div style="padding:0;">
+              <div style="padding:10px 20px;border-bottom:1px solid var(--border);">
+                <div class="label">Cost Terms  (one per LLM call)</div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Var</th>
+                      <th>Assigned Model</th>
+                      <th>Prompt Tok</th>
+                      <th>Completion Tok</th>
+                      <th>$/1M In</th>
+                      <th>$/1M Out</th>
+                      <th>Term Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fmlTermsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decision variables -->
+        <div style="margin-bottom:24px;">
+          <div class="label" style="margin-bottom:8px;">Decision Variables</div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Var</th>
+                  <th>Call #</th>
+                  <th>Complexity</th>
+                  <th>Feasible Models (domain)</th>
+                  <th>Original</th>
+                  <th>Assigned</th>
+                  <th>Changed</th>
+                </tr>
+              </thead>
+              <tbody id="fmlVarsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Constraints -->
+        <div>
+          <div class="label" style="margin-bottom:8px;">Constraints</div>
+          <div style="border:1px solid var(--border);">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Formal</th>
+                  <th>Natural Language</th>
+                  <th>Satisfied</th>
+                </tr>
+              </thead>
+              <tbody id="fmlConstraintsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="tab-pane" id="tab-summary">
+      <div class="tab-content">
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px;">
+          <div style="flex:1;">
+            <div class="label" style="margin-bottom:6px;">Task Description</div>
+            <input type="text" id="judgeTaskInput" placeholder="e.g. Find the best 20 flat rentals in NYC under $3000/month" />
+          </div>
+          <button class="btn primary" onclick="runJudge()" id="judgeBtn">Run Judge</button>
+        </div>
+        <div id="judgeResult" style="display:none;border:1px solid var(--border);padding:16px 20px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;" id="judgeSuccessLabel"></span>
+            <span style="font-size:11px;color:var(--text-3);" id="judgeScore"></span>
+          </div>
+          <div style="font-size:12px;color:var(--text-2);" id="judgeReasoning"></div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:10px;">Optimization Summary</div>
+          <pre style="font-size:12px;color:var(--text-2);white-space:pre-wrap;line-height:1.7;" id="summaryText">No summary available.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Patch -->
+    <div class="tab-pane" id="tab-patch">
+      <div class="tab-content">
+        <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);width:fit-content;">
+          <button class="btn active" id="patchBtn-dotenv"  onclick="switchPatchTab('dotenv',this)"  style="border:none;border-right:1px solid var(--border);">.env</button>
+          <button class="btn"        id="patchBtn-envvars" onclick="switchPatchTab('envvars',this)" style="border:none;border-right:1px solid var(--border);">Shell</button>
+          <button class="btn"        id="patchBtn-code"    onclick="switchPatchTab('code',this)"    style="border:none;">Python</button>
+        </div>
+        <div id="patch-dotenv" ><div class="code-block" id="patchDotenv" >Loading...</div></div>
+        <div id="patch-envvars" style="display:none;"><div class="code-block" id="patchEnvvars">Loading...</div></div>
+        <div id="patch-code"    style="display:none;"><div class="code-block" id="patchCode"   >Loading...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- JUDGE LOADING -->
+<div id="judgeLoadingOverlay">
+  <div style="background:var(--bg-1);border:1px solid var(--border-hi);padding:32px 40px;text-align:center;">
+    <div class="spin" style="font-size:20px;display:block;margin-bottom:12px;">⟳</div>
+    <div class="label">Running LLM Judge</div>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let sessions = [];
+  let optimizations = {};
+  let currentSessionId = null;
+  let costChart = null;
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    refreshAll();
+    checkProxyStatus();
+    setInterval(refreshAll, 5000);
+    setInterval(checkProxyStatus, 10000);
+  });
+
+  // ── Proxy status ──────────────────────────────────────────────────────────
+  async function checkProxyStatus() {
+    const dot  = document.getElementById('proxyDot');
+    const text = document.getElementById('proxyText');
+    try {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 2000);
+      await fetch('http://localhost:7453/v1/models', { signal: ctrl.signal });
+      dot.className  = 'dot online';
+      text.textContent = 'Proxy :7453';
+    } catch {
+      dot.className  = 'dot offline';
+      text.textContent = 'Proxy Offline';
+    }
+  }
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  async function refreshAll() {
+    document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+    await Promise.all([loadSummary(), loadSessions()]);
+  }
+
+  async function loadSummary() {
+    try {
+      const d = await fetch('/api/summary').then(r => r.json());
+      document.getElementById('cardRuns').textContent     = d.total_runs;
+      document.getElementById('cardSpend').textContent    = '$' + d.total_cost_usd.toFixed(4);
+      document.getElementById('cardSavings').textContent  = '$' + d.total_savings_usd.toFixed(4);
+      document.getElementById('cardSavingsPct').textContent = d.avg_savings_pct.toFixed(1) + '%';
+      document.getElementById('savingsBar').style.width   = Math.min(100, d.avg_savings_pct) + '%';
+    } catch {}
+  }
+
+  async function loadSessions() {
+    try {
+      sessions = await fetch('/api/sessions').then(r => r.json());
+      document.getElementById('sessionCount').textContent = sessions.length + ' session' + (sessions.length !== 1 ? 's' : '');
+      await Promise.all(sessions.map(s => loadOptimization(s.session_id)));
+      renderSessionsTable();
+      renderOverviewTable();
+      renderCostChart();
+    } catch {}
+  }
+
+  async function loadOptimization(sid) {
+    if (optimizations[sid]) return;
+    try {
+      const r = await fetch(`/api/sessions/${sid}/optimization`);
+      if (r.ok) optimizations[sid] = await r.json();
+    } catch {}
+  }
+
+  // ── Render: sessions table ─────────────────────────────────────────────────
+  function renderSessionsTable() {
+    const tb = document.getElementById('sessionsTableBody');
+    if (!sessions.length) {
+      tb.innerHTML = '<tr><td colspan="8" style="color:var(--text-3);text-align:center;padding:40px;">No sessions yet.</td></tr>';
+      return;
+    }
+    tb.innerHTML = sessions.map(s => {
+      const opt = optimizations[s.session_id] || {};
+      const savings    = opt.savings_usd     || 0;
+      const savingsPct = opt.savings_pct     || 0;
+      const optCost    = opt.optimized_cost_usd != null ? opt.optimized_cost_usd : s.total_cost_usd;
+      const badge = statusBadge(s.task_success);
+      const date  = s.start_time ? new Date(s.start_time * 1000).toLocaleString() : '—';
+      const task  = s.task_description ? s.task_description.substring(0, 42) + (s.task_description.length > 42 ? '…' : '') : '—';
+      return `<tr class="clickable" onclick="openSession('${s.session_id}')">
+        <td class="mono" style="color:var(--text-2);font-size:11px;">${s.session_id.substring(0,8)}…</td>
+        <td style="color:var(--text-3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${task}</td>
+        <td style="color:var(--text-3);font-size:11px;">${date}</td>
+        <td class="mono">${'$' + s.total_cost_usd.toFixed(6)}</td>
+        <td class="mono" style="color:var(--text-2);">${'$' + optCost.toFixed(6)}</td>
+        <td class="mono" style="color:var(--green);">${savings > 0 ? '$' + savings.toFixed(6) + (savingsPct > 0 ? ' <span style="color:var(--text-3);font-size:10px;">(' + savingsPct.toFixed(1) + '%)</span>' : '') : '—'}</td>
+        <td>${badge}</td>
+        <td>
+          <button class="btn" style="padding:4px 10px;font-size:10px;" onclick="event.stopPropagation();openSession('${s.session_id}')">View</button>
+          <button class="btn" style="padding:4px 10px;font-size:10px;margin-left:4px;" onclick="event.stopPropagation();openJudgeFor('${s.session_id}')">Judge</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderOverviewTable() {
+    const tb = document.getElementById('sessionsOverviewBody');
+    const top = sessions.slice(0, 6);
+    if (!top.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-3);text-align:center;padding:32px;">No data</td></tr>';
+      return;
+    }
+    tb.innerHTML = top.map(s => {
+      const opt     = optimizations[s.session_id] || {};
+      const savings = opt.savings_usd || 0;
+      return `<tr class="clickable" onclick="openSession('${s.session_id}')">
+        <td class="mono" style="font-size:11px;color:var(--text-2);">${s.session_id.substring(0,8)}…</td>
+        <td style="color:var(--text-3);">${s.event_count}</td>
+        <td class="mono">${'$' + s.total_cost_usd.toFixed(6)}</td>
+        <td class="mono" style="color:var(--green);">${savings > 0 ? '$' + savings.toFixed(6) : '—'}</td>
+        <td>${statusBadge(s.task_success)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function statusBadge(v) {
+    if (v === true)  return '<span class="badge success">Success</span>';
+    if (v === false) return '<span class="badge fail">Failed</span>';
+    return '<span class="badge unknown">Unknown</span>';
+  }
+
+  // ── Chart ─────────────────────────────────────────────────────────────────
+  function renderCostChart() {
+    const ctx = document.getElementById('costChart').getContext('2d');
+    const sl  = sessions.slice(0, 8);
+    const labels   = sl.map(s => s.session_id.substring(0,6) + '…');
+    const original = sl.map(s => s.total_cost_usd);
+    const optimized = sl.map(s => {
+      const o = optimizations[s.session_id];
+      return o ? o.optimized_cost_usd : s.total_cost_usd;
+    });
+
+    if (costChart) { costChart.destroy(); costChart = null; }
+
+    Chart.defaults.color = '#5a5a5a';
+    Chart.defaults.borderColor = '#2a2a2a';
+
+    costChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Original',
+            data: original,
+            backgroundColor: 'rgba(255,255,255,0.85)',
+            borderColor: '#ffffff',
+            borderWidth: 0,
+            borderRadius: 0,
+          },
+          {
+            label: 'Optimized',
+            data: optimized,
+            backgroundColor: 'rgba(74,222,128,0.8)',
+            borderColor: '#4ade80',
+            borderWidth: 0,
+            borderRadius: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.8,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#141414',
+            borderColor: '#2a2a2a',
+            borderWidth: 1,
+            titleColor: '#a0a0a0',
+            bodyColor: '#ffffff',
+            callbacks: { label: c => ' $' + c.parsed.y.toFixed(6) },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: '#1a1a1a' },
+            ticks: { color: '#5a5a5a', font: { size: 10 } },
+          },
+          y: {
+            grid: { color: '#1a1a1a' },
+            ticks: { color: '#5a5a5a', font: { size: 10 }, callback: v => '$' + v.toFixed(4) },
+          },
+        },
+      },
+    });
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  async function openSession(sid) {
+    currentSessionId = sid;
+    document.getElementById('sessionModal').classList.add('open');
+    document.getElementById('modalTitle').textContent    = 'Session ' + sid.substring(0,12) + '…';
+    document.getElementById('modalSubtitle').textContent = 'Loading…';
+    switchTab('timeline', document.querySelector('.tab.active'));
+    await Promise.all([loadSessionDetail(sid), loadOptimization(sid)]);
+    renderModalOptimization(sid);
+    renderModalLoops(sid);
+    renderModalFormulation(sid);
+    renderModalSummary(sid);
+    renderModalPatch(sid);
+  }
+
+  async function loadSessionDetail(sid) {
+    const tb = document.getElementById('timelineBody');
+    tb.innerHTML = '<tr><td colspan="9" style="color:var(--text-3);text-align:center;padding:32px;">Loading...</td></tr>';
+    try {
+      const d = await fetch(`/api/sessions/${sid}`).then(r => r.json());
+      document.getElementById('modalSubtitle').textContent =
+        `${d.event_count} events · $${d.total_cost_usd.toFixed(6)} · ${d.total_tokens} tokens · ${d.duration_seconds.toFixed(1)}s`;
+      if (d.task_description) document.getElementById('judgeTaskInput').value = d.task_description;
+      if (!d.events || !d.events.length) {
+        tb.innerHTML = '<tr><td colspan="9" style="color:var(--text-3);text-align:center;padding:32px;">No events.</td></tr>';
+        return;
+      }
+      tb.innerHTML = d.events.map((e, i) => {
+        const tool    = e.tool_name ? `<span style="font-size:10px;color:var(--blue);">${e.tool_name}</span>` : '—';
+        const type    = e.event_type === 'tool_call'
+          ? '<span style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:0.06em;">tool</span>'
+          : '<span style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;">llm</span>';
+        const preview = (e.completion_text || '').substring(0,80).replace(/</g,'&lt;') || '—';
+        return `<tr>
+          <td style="color:var(--text-3);font-size:11px;">${i+1}</td>
+          <td class="mono" style="font-size:11px;color:var(--text);">${e.model}</td>
+          <td>${type}</td>
+          <td>${tool}</td>
+          <td class="mono">${e.prompt_tokens.toLocaleString()}</td>
+          <td class="mono">${e.completion_tokens.toLocaleString()}</td>
+          <td class="mono" style="color:var(--green);">$${e.cost_usd.toFixed(6)}</td>
+          <td class="mono" style="color:var(--text-3);">${e.latency_ms.toFixed(0)}ms</td>
+          <td style="color:var(--text-3);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(e.completion_text||'').replace(/"/g,'&quot;')}">${preview}</td>
+        </tr>`;
+      }).join('');
+      if (d.task_success != null) showJudgeResult({ success: d.task_success, quality_score: d.quality_score, reasoning: d.judge_reasoning });
+    } catch(e) {
+      tb.innerHTML = `<tr><td colspan="9" style="color:var(--red);text-align:center;padding:32px;">Error: ${e.message}</td></tr>`;
+    }
+  }
+
+  function renderModalOptimization(sid) {
+    const opt = optimizations[sid];
+    if (!opt) return;
+    document.getElementById('optOriginal').textContent  = '$' + opt.original_cost_usd.toFixed(6);
+    document.getElementById('optOptimized').textContent = '$' + opt.optimized_cost_usd.toFixed(6);
+    document.getElementById('optSavings').textContent   = '$' + opt.savings_usd.toFixed(6) + '  (' + opt.savings_pct.toFixed(1) + '%)';
+    const tb = document.getElementById('optimizationBody');
+    if (!opt.recommendations || !opt.recommendations.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-3);text-align:center;padding:32px;">No downgrades recommended — agent is already well-optimized.</td></tr>';
+      return;
+    }
+    tb.innerHTML = opt.recommendations.map(r => `
+      <tr>
+        <td class="mono" style="font-size:11px;">${r.original_model}</td>
+        <td class="mono" style="font-size:11px;color:var(--green);">→ ${r.recommended_model}</td>
+        <td><span class="chip ${r.complexity}">${r.complexity}</span></td>
+        <td class="mono" style="color:var(--green);">$${r.savings_usd.toFixed(6)}</td>
+        <td style="color:var(--text-3);font-size:11px;">${r.reason}</td>
+      </tr>`).join('');
+  }
+
+  function renderModalLoops(sid) {
+    const opt = optimizations[sid];
+    const el  = document.getElementById('loopsContent');
+    if (!opt || !opt.loop_recommendations || !opt.loop_recommendations.length) {
+      el.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:32px;">No loop patterns detected.</div>';
+      return;
+    }
+    el.innerHTML = opt.loop_recommendations.map(lr => `
+      <div class="loop-card">
+        <div class="loop-card-header">
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text);margin-bottom:4px;">Loop Detected</div>
+            <div class="mono" style="font-size:11px;color:var(--text-3);margin-bottom:8px;">${lr.pattern}</div>
+            <div style="font-size:12px;color:var(--text-2);">${lr.description}</div>
+          </div>
+          <div style="text-align:right;margin-left:24px;flex-shrink:0;">
+            <div style="font-size:24px;font-weight:300;color:var(--red);">${lr.detected_iterations}×</div>
+            <div class="label" style="margin-top:2px;">detected</div>
+            <div style="font-size:14px;font-weight:600;color:var(--green);margin-top:8px;">${lr.recommended_max}× max</div>
+            <div style="font-size:11px;color:var(--text-3);">$${lr.savings_usd.toFixed(6)} saved</div>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderModalSummary(sid) {
+    const opt = optimizations[sid];
+    document.getElementById('summaryText').textContent = opt && opt.summary ? opt.summary : 'No summary available.';
+  }
+
+  function renderModalPatch(sid) {
+    const opt = optimizations[sid];
+    if (!opt) return;
+    const modelMap = {};
+    (opt.recommendations || []).forEach(r => { modelMap[r.original_model] = r.recommended_model; });
+    document.getElementById('patchDotenv').textContent  = buildDotenv(modelMap, opt);
+    document.getElementById('patchEnvvars').textContent = buildEnvVars(modelMap, opt);
+    document.getElementById('patchCode').textContent    = buildCodeSnippet(modelMap, opt);
+  }
+
+  function buildDotenv(m, opt) {
+    return ['# Agentimize Optimized Configuration',
+      `# Savings: $${opt.savings_usd.toFixed(6)} (${opt.savings_pct.toFixed(1)}%)`, '',
+      ...Object.entries(m).map(([o, r]) => `# ${o}  →  ${r}`),
+      Object.keys(m).length ? `\nAGENTIMIZE_MODEL_MAP='${JSON.stringify(m)}'` : '# No model changes recommended',
+    ].join('\n');
+  }
+
+  function buildEnvVars(m, opt) {
+    return Object.entries(m).map(([o, r]) =>
+      `export ${o.replace(/-/g,'_').toUpperCase()}_REPLACEMENT="${r}"`).join('\n') || '# No changes needed';
+  }
+
+  function buildCodeSnippet(m, opt) {
+    return `# Agentimize Optimized Configuration
+# Savings: $${opt.savings_usd.toFixed(6)} (${opt.savings_pct.toFixed(1)}%)
+
+MODEL_MAP = ${JSON.stringify(m, null, 4)}
+
+def get_optimized_model(model: str) -> str:
+    return MODEL_MAP.get(model, model)
+
+${Object.entries(m).map(([o,r]) => `# model="${o}"  →  model=get_optimized_model("${o}")  # Uses ${r}`).join('\n')}`;
+  }
+
+  function closeModal() {
+    document.getElementById('sessionModal').classList.remove('open');
+    currentSessionId = null;
+  }
+
+  document.getElementById('sessionModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function renderModalFormulation(sid) {
+    const opt = optimizations[sid];
+    if (!opt || !opt.formulation) return;
+    const f = opt.formulation;
+
+    document.getElementById('fmlExplanation').textContent       = f.explanation || '—';
+    document.getElementById('fmlType').textContent              = f.problem_type || '—';
+    document.getElementById('fmlSolver').textContent            = f.solver || '—';
+    document.getElementById('fmlVarsConstraints').textContent   = `${f.n_variables} variables · ${f.n_constraints} constraints`;
+    document.getElementById('fmlLatex').textContent             = f.objective?.latex || '—';
+    document.getElementById('fmlObjNL').textContent             = f.objective?.natural_language || '—';
+
+    // Objective terms
+    const termsTb = document.getElementById('fmlTermsBody');
+    termsTb.innerHTML = (f.objective?.terms || []).map(t => `
+      <tr>
+        <td class="mono" style="font-size:11px;color:var(--text-3);">${t.var}</td>
+        <td class="mono" style="font-size:11px;">${t.model}</td>
+        <td class="mono">${t.prompt_tokens.toLocaleString()}</td>
+        <td class="mono">${t.completion_tokens.toLocaleString()}</td>
+        <td class="mono" style="color:var(--text-3);">$${t.input_price_per_1m}</td>
+        <td class="mono" style="color:var(--text-3);">$${t.output_price_per_1m}</td>
+        <td class="mono" style="color:var(--green);">$${t.cost.toFixed(8)}</td>
+      </tr>`).join('');
+
+    // Decision variables
+    const varsTb = document.getElementById('fmlVarsBody');
+    varsTb.innerHTML = (f.decision_variables || []).map(v => {
+      const changed = v.current_value !== v.assigned_value;
+      return `<tr>
+        <td class="mono" style="font-size:11px;color:var(--text-3);">${v.var_name}</td>
+        <td style="color:var(--text-3);">${v.index + 1}</td>
+        <td><span class="chip ${v.complexity}">${v.complexity}</span></td>
+        <td class="mono" style="font-size:10px;color:var(--text-3);">{${v.domain.join(', ')}}</td>
+        <td class="mono" style="font-size:11px;">${v.current_value}</td>
+        <td class="mono" style="font-size:11px;color:${changed ? 'var(--green)' : 'var(--text-3)'};">${v.assigned_value}</td>
+        <td style="text-align:center;">${changed ? '<span style="color:var(--green);">✓</span>' : '<span style="color:var(--text-3);">—</span>'}</td>
+      </tr>`;
+    }).join('');
+
+    // Constraints
+    const conTb = document.getElementById('fmlConstraintsBody');
+    conTb.innerHTML = (f.constraints || []).map(c => `
+      <tr>
+        <td style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-3);">${c.type}</td>
+        <td class="mono" style="font-size:11px;color:var(--text-2);">${c.description}</td>
+        <td style="font-size:12px;color:var(--text-3);">${c.natural_language}</td>
+        <td style="text-align:center;color:var(--green);">${c.satisfied ? '✓' : '✗'}</td>
+      </tr>`).join('');
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (btn) btn.classList.add('active');
+  }
+
+  function switchPatchTab(name, btn) {
+    ['dotenv','envvars','code'].forEach(t => {
+      document.getElementById('patch-' + t).style.display = t === name ? '' : 'none';
+      document.getElementById('patchBtn-' + t).style.background = t === name ? 'var(--text)' : '';
+      document.getElementById('patchBtn-' + t).style.color = t === name ? 'var(--bg)' : '';
+    });
+  }
+
+  // ── Judge ─────────────────────────────────────────────────────────────────
+  async function runJudge() {
+    if (!currentSessionId) return;
+    const task = document.getElementById('judgeTaskInput').value.trim();
+    if (!task) { document.getElementById('judgeTaskInput').focus(); return; }
+    document.getElementById('judgeLoadingOverlay').classList.add('open');
+    document.getElementById('judgeBtn').disabled = true;
+    try {
+      const r = await fetch(`/api/sessions/${currentSessionId}/judge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_description: task }),
+      });
+      const d = await r.json();
+      if (!r.ok) { alert('Judge error: ' + (d.detail || 'Unknown')); return; }
+      showJudgeResult(d);
+    } catch(e) {
+      alert('Judge failed: ' + e.message);
+    } finally {
+      document.getElementById('judgeLoadingOverlay').classList.remove('open');
+      document.getElementById('judgeBtn').disabled = false;
+    }
+  }
+
+  function showJudgeResult(d) {
+    const el = document.getElementById('judgeResult');
+    el.style.display = '';
+    const lbl = document.getElementById('judgeSuccessLabel');
+    lbl.textContent  = d.success ? '✓  Task Successful' : '✗  Task Failed';
+    lbl.style.color  = d.success ? 'var(--green)' : 'var(--red)';
+    document.getElementById('judgeScore').textContent    = d.quality_score != null ? 'Quality: ' + (d.quality_score * 100).toFixed(0) + '%' : '';
+    document.getElementById('judgeReasoning').textContent = d.reasoning || '';
+  }
+
+  function openJudgeFor(sid) {
+    openSession(sid).then(() => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-summary').classList.remove('active');
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      const summaryTab = document.querySelector('.tab:nth-child(4)');
+      if (summaryTab) { summaryTab.classList.add('active'); }
+      document.getElementById('tab-summary').classList.add('active');
+    });
+  }
+</script>
+</body>
+</html>
