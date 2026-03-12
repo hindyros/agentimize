@@ -384,9 +384,12 @@ def _build_formulation(
             "var": dv["var_name"],
             "description": f"m_{dv['index']} ∈ {{{', '.join(MODEL_TIERS[min_tier:])}}}",
             "natural_language": (
-                f"Call #{dv['index']+1} is classified as '{dv['complexity']}' "
-                f"({'has tool calls' if dv['tool_name'] else f\"{dv['prompt_tokens']} tokens, no tools\"}) "
-                f"→ minimum model tier: {min_model}"
+                "Call #{} is classified as '{}' ({}) → minimum model tier: {}".format(
+                    dv["index"] + 1,
+                    dv["complexity"],
+                    "has tool calls" if dv["tool_name"] else "{} tokens, no tools".format(dv["prompt_tokens"]),
+                    min_model,
+                )
             ),
             "satisfied": True,
         })
