@@ -42,6 +42,22 @@ class AnalyzeRequest(BaseModel):
     trace_file: str
 
 
+class TraceEventInput(BaseModel):
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float = 0.0
+    latency_ms: float = 0.0
+    tool_name: str | None = None
+    tool_calls: list[dict] = []
+    event_type: str = "llm_call"
+
+
+class OptimizeRequest(BaseModel):
+    events: list[TraceEventInput]
+    task_description: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
@@ -279,6 +295,58 @@ async def get_summary() -> JSONResponse:
             "failed": failed,
             "unknown": unknown,
         },
+    })
+
+
+@app.post("/api/optimize")
+async def optimize_events(request: OptimizeRequest) -> JSONResponse:
+    """
+    Public optimization endpoint for join39.org and external callers.
+
+    Accepts a list of LLM call events and returns cost optimization recommendations.
+    No file system access required — pass events directly in the request body.
+    """
+    import time, uuid
+    from agentimize.tracer.models import Trace, TraceEvent
+    from agentimize.tracer.graph_builder import build_graph
+    from agentimize.optimizer.solver import optimize_trace
+
+    if not request.events:
+        raise HTTPException(status_code=400, detail="events list cannot be empty")
+
+    session_id = str(uuid.uuid4())
+    events = []
+    for i, e in enumerate(request.events):
+        events.append(TraceEvent(
+            session_id=session_id,
+            timestamp=time.time() + i,
+            event_type=e.event_type,
+            model=e.model,
+            prompt_tokens=e.prompt_tokens,
+            completion_tokens=e.completion_tokens,
+            cost_usd=e.cost_usd,
+            latency_ms=e.latency_ms,
+            tool_name=e.tool_name,
+            tool_calls=e.tool_calls,
+            completion_text="",
+        ))
+
+    trace = Trace(session_id=session_id, events=events, task_description=request.task_description)
+    trace.recalculate()
+    graph = build_graph(trace)
+    result = optimize_trace(trace, graph)
+    d = result.model_dump()
+
+    return JSONResponse(content={
+        "session_id": session_id,
+        "original_cost_usd": d["original_cost_usd"],
+        "optimized_cost_usd": d["optimized_cost_usd"],
+        "savings_usd": d["savings_usd"],
+        "savings_pct": d["savings_pct"],
+        "recommendations": d["recommendations"],
+        "loop_recommendations": d["loop_recommendations"],
+        "summary": d["summary"],
+        "formulation": d["formulation"],
     })
 
 
