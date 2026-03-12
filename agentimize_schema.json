@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "properties": {
+    "events": {
+      "type": "array",
+      "description": "LLM call events from the agent execution trace",
+      "items": {
+        "type": "object",
+        "properties": {
+          "model": {"type": "string", "description": "Model name e.g. gpt-4o or gpt-4o-mini"},
+          "prompt_tokens": {"type": "integer", "description": "Number of input tokens"},
+          "completion_tokens": {"type": "integer", "description": "Number of output tokens"},
+          "cost_usd": {"type": "number", "description": "Actual cost in USD"},
+          "latency_ms": {"type": "number", "description": "Latency in milliseconds"},
+          "tool_name": {"type": "string", "description": "Tool called if any"},
+          "event_type": {"type": "string", "enum": ["llm_call", "tool_call"]}
+        },
+        "required": ["model", "prompt_tokens", "completion_tokens"]
+      }
+    },
+    "task_description": {
+      "type": "string",
+      "description": "What the agent was trying to accomplish"
+    },
+    "openai_api_key": {
+      "type": "string",
+      "description": "Your own OpenAI API key, only needed for LLM quality assessment. Not stored by the server."
+    }
+  },
+  "required": ["events"]
+}
