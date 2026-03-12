@@ -57,6 +57,8 @@ class OptimizeRequest(BaseModel):
     events: list[TraceEventInput]
     task_description: str | None = None
     openai_api_key: str | None = None  # user's own key for judge functionality
+    quality_floor: float = 0.0         # 0.0–1.0 min weighted capability score
+    budget_usd: float | None = None    # optional hard spend cap
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +93,11 @@ def _load_all_sessions() -> dict[str, Any]:
     return sessions
 
 
-def _get_optimization(session_id: str) -> dict[str, Any] | None:
+def _get_optimization(
+    session_id: str,
+    quality_floor: float = 0.0,
+    budget_usd: float | None = None,
+) -> dict[str, Any] | None:
     """Run optimization on a session and return the result dict."""
     from agentimize.tracer.graph_builder import build_graph, load_all_traces, parse_trace
     from agentimize.optimizer.solver import optimize_trace
@@ -104,7 +110,7 @@ def _get_optimization(session_id: str) -> dict[str, Any] | None:
 
     trace = parse_trace(session_id, raw_sessions[session_id])
     graph = build_graph(trace)
-    result = optimize_trace(trace, graph)
+    result = optimize_trace(trace, graph, quality_floor=quality_floor, budget_usd=budget_usd)
 
     return result.model_dump()
 
@@ -190,9 +196,18 @@ async def get_session(session_id: str) -> JSONResponse:
 
 
 @app.get("/api/sessions/{session_id}/optimization")
-async def get_session_optimization(session_id: str) -> JSONResponse:
-    """Get optimization recommendations for a session."""
-    result = _get_optimization(session_id)
+async def get_session_optimization(
+    session_id: str,
+    quality_floor: float = 0.0,
+    budget_usd: float | None = None,
+) -> JSONResponse:
+    """Get optimization recommendations for a session.
+
+    Optional query params:
+    - quality_floor: float in [0, 1] — minimum weighted capability score (default 0)
+    - budget_usd: float — hard spend cap for the optimized plan (default none)
+    """
+    result = _get_optimization(session_id, quality_floor=quality_floor, budget_usd=budget_usd)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
     return JSONResponse(content=result)
@@ -343,7 +358,11 @@ async def optimize_events(request: OptimizeRequest) -> JSONResponse:
     trace = Trace(session_id=session_id, events=events, task_description=request.task_description)
     trace.recalculate()
     graph = build_graph(trace)
-    result = optimize_trace(trace, graph)
+    result = optimize_trace(
+        trace, graph,
+        quality_floor=request.quality_floor,
+        budget_usd=request.budget_usd,
+    )
     d = result.model_dump()
 
     # Optionally run LLM judge if user supplied their own API key
