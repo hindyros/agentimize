@@ -62,6 +62,11 @@ class OptimizeRequest(BaseModel):
 # Helper functions
 # ---------------------------------------------------------------------------
 
+def _is_read_only_env() -> bool:
+    """Return True when running in a read-only/serverless environment (e.g. Vercel)."""
+    return os.getenv("VERCEL") == "1" or os.getenv("VERCEL_ENV") is not None
+
+
 def _get_search_dir() -> Path:
     """Return the directory to search for .jsonl trace files."""
     return Path(os.getenv("TRACE_SEARCH_DIR", ".")).resolve()
@@ -69,6 +74,9 @@ def _get_search_dir() -> Path:
 
 def _load_all_sessions() -> dict[str, Any]:
     """Load all sessions from all .jsonl files in the search dir."""
+    if _is_read_only_env():
+        return {}
+
     from agentimize.tracer.graph_builder import load_all_traces, parse_trace
 
     search_dir = _get_search_dir()
