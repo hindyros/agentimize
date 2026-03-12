@@ -56,6 +56,7 @@ class TraceEventInput(BaseModel):
 class OptimizeRequest(BaseModel):
     events: list[TraceEventInput]
     task_description: str | None = None
+    openai_api_key: str | None = None  # user's own key for judge functionality
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +346,19 @@ async def optimize_events(request: OptimizeRequest) -> JSONResponse:
     result = optimize_trace(trace, graph)
     d = result.model_dump()
 
+    # Optionally run LLM judge if user supplied their own API key
+    judge_result = None
+    if request.openai_api_key and request.task_description:
+        try:
+            from agentimize.judge.llm_judge import LLMJudge
+            judge = LLMJudge(api_key=request.openai_api_key)
+            judge_result = judge.judge_task(
+                task_description=request.task_description,
+                final_response=trace.final_completion,
+            )
+        except Exception:
+            pass
+
     return JSONResponse(content={
         "session_id": session_id,
         "original_cost_usd": d["original_cost_usd"],
@@ -355,6 +369,7 @@ async def optimize_events(request: OptimizeRequest) -> JSONResponse:
         "loop_recommendations": d["loop_recommendations"],
         "summary": d["summary"],
         "formulation": d["formulation"],
+        "judge": judge_result,
     })
 
 
